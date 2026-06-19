@@ -32,50 +32,26 @@
     <div class="form-group">
         <label>1. 검색할 연도 범위 <span class="limit-text">(최장 10년 가능)</span></label>
         <div style="display: flex; gap: 10px;">
-            <input type="number" id="startYear" placeholder="시작 연도 (예: 2015)">
+            <input type="number" id="startYear" value="2015" placeholder="시작 연도 (예: 2015)">
             <span style="line-height: 40px;">~</span>
-            <input type="number" id="endYear" placeholder="종료 연도 (예: 2024)">
+            <input type="number" id="endYear" value="2024" placeholder="종료 연도 (예: 2024)">
         </div>
     </div>
 
     <div class="form-group">
         <label>2. 매년 반복할 날짜 구간</label>
         <div style="display: flex; gap: 10px;">
-            <input type="date" id="startMD">
+            <input type="text" id="startMD" value="06-19" placeholder="시작일 (MM-DD)">
             <span style="line-height: 40px;">~</span>
-            <input type="date" id="endMD">
+            <input type="text" id="endMD" value="06-20" placeholder="종료일 (MM-DD)">
         </div>
-        <div class="help-text">같은 연도 안에서 날짜를 고르면 됩니다. 검색에는 연도를 제외한 MM-DD만 사용합니다.</div>
+        <div class="help-text">하루만 검색하더라도 종료일은 다음 날짜로 적어주세요. (예: 6월 19일 검색 시 06-19 ~ 06-20)</div>
     </div>
 
     <div class="form-group">
         <label>3. 특정 계정 (선택)</label>
-        <div style="display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0 12px;">
-            <button type="button" class="copy-btn" onclick="setDefaultAccounts(true)" style="float: none; margin-left: 0;">전체 선택</button>
-            <button type="button" class="copy-btn" onclick="setDefaultAccounts(false)" style="float: none; margin-left: 0;">전체 해제</button>
-        </div>
-        <div id="defaultAccounts" style="display: grid; gap: 8px; margin-top: 8px;">
-            <label class="checkbox-group" style="margin-top: 0;">
-                <input type="checkbox" class="default-account" value="love_yuna" checked>
-                <span>love_yuna</span>
-            </label>
-            <label class="checkbox-group" style="margin-top: 0;">
-                <input type="checkbox" class="default-account" value="JaurimOfficial" checked>
-                <span>JaurimOfficial</span>
-            </label>
-            <label class="checkbox-group" style="margin-top: 0;">
-                <input type="checkbox" class="default-account" value="kim_jinman" checked>
-                <span>kim_jinman</span>
-            </label>
-            <label class="checkbox-group" style="margin-top: 0;">
-                <input type="checkbox" class="default-account" value="2sunkyu" checked>
-                <span>2sunkyu</span>
-            </label>
-        </div>
-        <div style="margin-top: 12px;">
-            <input type="text" id="extraAccounts" placeholder="추가 계정 입력 (예: account1, account2)">
-        </div>
-        <div class="help-text">기본 계정은 체크로 선택/해제할 수 있고, 아래 칸에 다른 계정을 쉼표(,)로 추가할 수 있습니다.</div>
+        <input type="text" id="accounts" placeholder="예: love_yuna, JaurimOfficial, kim_jinman, 2sunkyu" value="love_yuna, JaurimOfficial, kim_jinman, 2sunkyu">
+        <div class="help-text">쉼표(,)로 구분하여 여러 계정 입력 가능. 비워두면 모든 사람의 트윗 검색.</div>
     </div>
 
     <div class="form-group">
@@ -99,97 +75,16 @@
 </div>
 
 <script>
-    function setDefaultAccounts(checked) {
-        document.querySelectorAll('.default-account').forEach(input => {
-            input.checked = checked;
-        });
-    }
-
-    function isLeapYear(year) {
-        return (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
-    }
-
-    function isValidMonthDaySyntax(value) {
-        return /^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$/.test(value);
-    }
-
-    function toMonthDay(dateValue) {
-        const [year, month, day] = dateValue.split('-');
-        return `${month}-${day}`;
-    }
-
-    function getLocalDateOffset(days) {
-        const date = new Date();
-        date.setDate(date.getDate() + days);
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
-        return `${year}-${month}-${day}`;
-    }
-
-    function getCurrentYear() {
-        return new Date().getFullYear();
-    }
-
-    function initializeYearInputs() {
-        const startInput = document.getElementById('startYear');
-        const endInput = document.getElementById('endYear');
-
-        if (startInput && !startInput.value) {
-            startInput.value = String(getCurrentYear() - 9);
-        }
-
-        if (endInput && !endInput.value) {
-            endInput.value = String(getCurrentYear());
-        }
-    }
-
-    function initializeDatePickers() {
-        const startInput = document.getElementById('startMD');
-        const endInput = document.getElementById('endMD');
-
-        if (startInput && !startInput.value) {
-            startInput.value = getLocalDateOffset(0);
-        }
-
-        if (endInput && !endInput.value) {
-            endInput.value = getLocalDateOffset(1);
-        }
-    }
-
-    function isValidMonthDayForYear(value, year) {
-        if (!isValidMonthDaySyntax(value)) return false;
-
-        const [month, day] = value.split('-').map(Number);
-        const maxDays = [31, isLeapYear(year) ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-        return day <= maxDays[month - 1];
-    }
-
-    function isNonNegativeIntegerText(value) {
-        return /^[0-9]+$/.test(value);
-    }
-
     function generateQuery() {
         // 입력값 가져오기
         const startYear = parseInt(document.getElementById('startYear').value);
         const endYear = parseInt(document.getElementById('endYear').value);
-        const startDateValue = document.getElementById('startMD').value.trim();
-        const endDateValue = document.getElementById('endMD').value.trim();
-        const defaultAccountInputs = Array.from(document.querySelectorAll('.default-account'));
-        const extraAccountsRaw = document.getElementById('extraAccounts').value;
+        const startMD = document.getElementById('startMD').value.trim();
+        const endMD = document.getElementById('endMD').value.trim();
+        const accountsRaw = document.getElementById('accounts').value;
         const keywordsRaw = document.getElementById('keywords').value;
         const minRt = document.getElementById('minRt').value;
         const verifiedOr = document.getElementById('verifiedOr').checked;
-
-        if (!Number.isInteger(startYear) || !Number.isInteger(endYear)) {
-            alert("시작 연도와 종료 연도를 숫자로 정확히 입력해주세요!");
-            return;
-        }
-
-        if (startYear > endYear) {
-            alert("시작 연도는 종료 연도보다 클 수 없습니다!");
-            return;
-        }
 
         // 10년 초과 검사 로직 (예: 2015년~2024년은 10년이므로 차이가 9 이하여야 함)
         if (endYear - startYear > 9) {
@@ -197,45 +92,13 @@
             return;
         }
 
-        if (!startDateValue || !endDateValue) {
+        if (!startMD || !endMD) {
             alert("시작일과 종료일을 정확히 입력해주세요!");
             return;
         }
 
-        if (!/^\d{4}-\d{2}-\d{2}$/.test(startDateValue) || !/^\d{4}-\d{2}-\d{2}$/.test(endDateValue)) {
-            alert("날짜를 달력에서 선택해주세요!");
-            return;
-        }
-
-        const startDate = new Date(`${startDateValue}T00:00:00`);
-        const endDate = new Date(`${endDateValue}T00:00:00`);
-        if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
-            alert("날짜를 다시 확인해주세요!");
-            return;
-        }
-
-        if (startDate.getFullYear() !== endDate.getFullYear()) {
-            alert("시작일과 종료일은 같은 연도여야 합니다!\n예: 2024-06-19 ~ 2024-06-20");
-            return;
-        }
-
-        if (startDateValue > endDateValue) {
-            alert("시작일은 종료일보다 앞서야 합니다!\n예: 2024-06-19 ~ 2024-06-20");
-            return;
-        }
-
-        const startMD = toMonthDay(startDateValue);
-        const endMD = toMonthDay(endDateValue);
-
         // 계정 처리
-        let accounts = defaultAccountInputs
-            .filter(input => input.checked)
-            .map(input => input.value.trim())
-            .filter(s => s !== '');
-
-        const extraAccounts = extraAccountsRaw.split(',').map(s => s.trim()).filter(s => s !== '');
-        accounts = [...new Set(accounts.concat(extraAccounts))];
-
+        let accounts = accountsRaw.split(',').map(s => s.trim()).filter(s => s !== '');
         let accountQuery = '';
         if (accounts.length > 0) {
             if (accounts.length === 1) {
@@ -259,32 +122,11 @@
         // 필터 처리 (파딱 OR RT)
         let filterQuery = '';
         if (verifiedOr && minRt) {
-            if (!isNonNegativeIntegerText(minRt)) {
-                alert("최소 리트윗 수는 0 이상의 정수여야 합니다!");
-                return;
-            }
             filterQuery = `(filter:verified OR min_retweets:${minRt})`;
         } else if (verifiedOr) {
             filterQuery = `filter:verified`;
         } else if (minRt) {
-            if (!isNonNegativeIntegerText(minRt)) {
-                alert("최소 리트윗 수는 0 이상의 정수여야 합니다!");
-                return;
-            }
             filterQuery = `min_retweets:${minRt}`;
-        }
-
-        if (accounts.length === 0 && keywords.length === 0 && !filterQuery) {
-            alert("검색 조건이 너무 비어 있습니다. 계정, 검색어, 필터 중 하나 이상을 설정해주세요!");
-            return;
-        }
-
-        const invalidYear = Array.from({ length: endYear - startYear + 1 }, (_, index) => startYear + index)
-            .find(year => !isValidMonthDayForYear(startMD, year) || !isValidMonthDayForYear(endMD, year));
-
-        if (invalidYear !== undefined) {
-            alert(`입력한 날짜가 ${invalidYear}년 기준으로 유효하지 않습니다.\n윤년 날짜(예: 02-29)는 모든 선택 연도에서 존재할 때만 사용할 수 있습니다.`);
-            return;
         }
 
         // 기본 명령어 조합
@@ -337,9 +179,6 @@
         box.appendChild(code);
         resultContainer.appendChild(box);
     }
-
-    initializeYearInputs();
-    initializeDatePickers();
 </script>
 
 </body>
