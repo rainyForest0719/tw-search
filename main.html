@@ -41,11 +41,11 @@
     <div class="form-group">
         <label>2. 매년 반복할 날짜 구간</label>
         <div style="display: flex; gap: 10px;">
-            <input type="date" id="startMD">
+            <input type="text" id="startMD" placeholder="MM-DD">
             <span style="line-height: 40px;">~</span>
-            <input type="date" id="endMD">
+            <input type="text" id="endMD" placeholder="MM-DD">
         </div>
-        <div class="help-text">같은 연도 안에서 날짜를 고르면 됩니다. 검색에는 연도를 제외한 MM-DD만 사용합니다.</div>
+        <div class="help-text">연도 없이 MM-DD만 입력합니다. 예: 06-19 ~ 06-20</div>
     </div>
 
     <div class="form-group">
@@ -113,26 +113,28 @@
         });
     }
 
-    function isLeapYear(year) {
-        return (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
-    }
-
     function isValidMonthDaySyntax(value) {
         return /^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$/.test(value);
     }
 
-    function toMonthDay(dateValue) {
-        const [year, month, day] = dateValue.split('-');
-        return `${month}-${day}`;
+    function isLeapYear(year) {
+        return (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
     }
 
-    function getLocalDateOffset(days) {
+    function isValidMonthDayForYear(value, year) {
+        if (!isValidMonthDaySyntax(value)) return false;
+
+        const [month, day] = value.split('-').map(Number);
+        const maxDays = [31, isLeapYear(year) ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+        return day <= maxDays[month - 1];
+    }
+
+    function getLocalMonthDayOffset(days) {
         const date = new Date();
         date.setDate(date.getDate() + days);
-        const year = date.getFullYear();
         const month = String(date.getMonth() + 1).padStart(2, '0');
         const day = String(date.getDate()).padStart(2, '0');
-        return `${year}-${month}-${day}`;
+        return `${month}-${day}`;
     }
 
     function getCurrentYear() {
@@ -152,16 +154,16 @@
         }
     }
 
-    function initializeDatePickers() {
+    function initializeDateInputs() {
         const startInput = document.getElementById('startMD');
         const endInput = document.getElementById('endMD');
 
         if (startInput && !startInput.value) {
-            startInput.value = getLocalDateOffset(0);
+            startInput.value = getLocalMonthDayOffset(0);
         }
 
         if (endInput && !endInput.value) {
-            endInput.value = getLocalDateOffset(1);
+            endInput.value = getLocalMonthDayOffset(1);
         }
     }
 
@@ -177,14 +179,6 @@
 
         toggle.addEventListener('change', sync);
         sync();
-    }
-
-    function isValidMonthDayForYear(value, year) {
-        if (!isValidMonthDaySyntax(value)) return false;
-
-        const [month, day] = value.split('-').map(Number);
-        const maxDays = [31, isLeapYear(year) ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-        return day <= maxDays[month - 1];
     }
 
     function isNonNegativeIntegerText(value) {
@@ -230,30 +224,18 @@
             return;
         }
 
-        if (!/^\d{4}-\d{2}-\d{2}$/.test(startDateValue) || !/^\d{4}-\d{2}-\d{2}$/.test(endDateValue)) {
-            alert("날짜를 달력에서 선택해주세요!");
+        const startMD = startDateValue;
+        const endMD = endDateValue;
+
+        if (!isValidMonthDaySyntax(startMD) || !isValidMonthDaySyntax(endMD)) {
+            alert("날짜는 MM-DD 형식으로 입력해주세요!\n예: 06-19, 12-31");
             return;
         }
 
-        const startDate = new Date(`${startDateValue}T00:00:00`);
-        const endDate = new Date(`${endDateValue}T00:00:00`);
-        if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
-            alert("날짜를 다시 확인해주세요!");
+        if (startMD >= endMD) {
+            alert("시작일은 종료일보다 앞서야 합니다!\n예: 06-19 ~ 06-20");
             return;
         }
-
-        if (startDate.getFullYear() !== endDate.getFullYear()) {
-            alert("시작일과 종료일은 같은 연도여야 합니다!\n예: 2024-06-19 ~ 2024-06-20");
-            return;
-        }
-
-        if (startDateValue > endDateValue) {
-            alert("시작일은 종료일보다 앞서야 합니다!\n예: 2024-06-19 ~ 2024-06-20");
-            return;
-        }
-
-        const startMD = toMonthDay(startDateValue);
-        const endMD = toMonthDay(endDateValue);
 
         // 계정 처리
         let accounts = defaultAccountInputs
@@ -307,14 +289,6 @@
             return;
         }
 
-        const invalidYear = Array.from({ length: endYear - startYear + 1 }, (_, index) => startYear + index)
-            .find(year => !isValidMonthDayForYear(startMD, year) || !isValidMonthDayForYear(endMD, year));
-
-        if (invalidYear !== undefined) {
-            alert(`입력한 날짜가 ${invalidYear}년 기준으로 유효하지 않습니다.\n윤년 날짜(예: 02-29)는 모든 선택 연도에서 존재할 때만 사용할 수 있습니다.`);
-            return;
-        }
-
         // 기본 명령어 조합
         let baseParts = [];
         if (accountQuery) baseParts.push(accountQuery);
@@ -323,18 +297,31 @@
         let baseQuery = baseParts.join(' ');
 
         const yearRanges = splitYearRanges(startYear, endYear, 10);
+        const filteredYearRanges = yearRanges
+            .map(range => ({
+                ...range,
+                years: Array.from({ length: range.end - range.start + 1 }, (_, index) => range.start + index)
+                    .filter(year => isValidMonthDayForYear(startMD, year) && isValidMonthDayForYear(endMD, year)),
+            }))
+            .filter(range => range.years.length > 0);
+
+        if (filteredYearRanges.length === 0) {
+            alert("선택한 날짜로 생성할 수 있는 연도가 없습니다. 날짜를 다시 확인해주세요!");
+            return;
+        }
+
         const resultContainer = document.getElementById('resultContainer');
         resultContainer.innerHTML = '<h3>✨ 생성된 검색 명령어</h3>';
 
         const summary = document.createElement('div');
         summary.className = 'help-text';
         summary.style.marginBottom = '12px';
-        summary.innerText = `총 ${yearRanges.length}개 검색어가 생성되었습니다.`;
+        summary.innerText = `총 ${filteredYearRanges.length}개 검색어가 생성되었습니다.`;
         resultContainer.appendChild(summary);
 
-        yearRanges.forEach((range, index) => {
+        filteredYearRanges.forEach((range, index) => {
             const dateQueries = [];
-            for (let y = range.start; y <= range.end; y++) {
+            for (let y of range.years) {
                 dateQueries.push(`(since:${y}-${startMD} until:${y}-${endMD})`);
             }
 
@@ -376,7 +363,7 @@
     }
 
     initializeYearInputs();
-    initializeDatePickers();
+    initializeDateInputs();
     initializeKeywordToggle();
 </script>
 
