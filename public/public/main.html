@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>구트현X 고급 검색 명령어 생성기</title>
+    <style>
+        body { font-family: 'Malgun Gothic', sans-serif; background-color: #f5f8fa; color: #14171a; padding: 20px; line-height: 1.6; }
+        .container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        h2 { color: #1da1f2; text-align: center; margin-top: 0; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; font-weight: bold; margin-bottom: 5px; font-size: 14px; }
+        .limit-text { font-weight: normal; color: #e0245e; font-size: 12px; margin-left: 5px; }
+        input[type="text"], input[type="number"] { width: 100%; padding: 10px; border: 1px solid #ccd6dd; border-radius: 6px; box-sizing: border-box; font-size: 14px; }
+        input[type="text"]:focus, input[type="number"]:focus { border-color: #1da1f2; outline: none; }
+        .help-text { font-size: 12px; color: #657786; margin-top: 4px; }
+        .checkbox-group { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 14px; }
+        .btn { width: 100%; background-color: #1da1f2; color: white; border: none; padding: 12px; border-radius: 20px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 20px; }
+        .btn:hover { background-color: #0c85d0; }
+        .result-area { margin-top: 30px; }
+        .result-box { background: #e6ecf0; padding: 15px; border-radius: 6px; margin-bottom: 10px; word-break: break-all; font-family: monospace; font-size: 13px; position: relative; }
+        .copy-btn { background: #657786; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; float: right; margin-left: 10px;}
+        .copy-btn:hover { background: #14171a; }
+        .clearfix::after { content: ""; clear: both; display: table; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>🔍 구트현X 검색기</h2>
+
+    <div class="form-group">
+        <label>1. 검색할 연도 범위 <span class="limit-text">(최장 10년 가능)</span></label>
+        <div style="display: flex; gap: 10px;">
+            <input type="number" id="startYear" value="2015" placeholder="시작 연도 (예: 2015)">
+            <span style="line-height: 40px;">~</span>
+            <input type="number" id="endYear" value="2024" placeholder="종료 연도 (예: 2024)">
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label>2. 매년 반복할 날짜 구간</label>
+        <div style="display: flex; gap: 10px;">
+            <input type="text" id="startMD" value="06-19" placeholder="시작일 (MM-DD)">
+            <span style="line-height: 40px;">~</span>
+            <input type="text" id="endMD" value="06-20" placeholder="종료일 (MM-DD)">
+        </div>
+        <div class="help-text">하루만 검색하더라도 종료일은 다음 날짜로 적어주세요. (예: 6월 19일 검색 시 06-19 ~ 06-20)</div>
+    </div>
+
+    <div class="form-group">
+        <label>3. 특정 계정 (선택)</label>
+        <input type="text" id="accounts" placeholder="예: love_yuna, JaurimOfficial, kim_jinman, 2sunkyu" value="love_yuna, JaurimOfficial, kim_jinman, 2sunkyu">
+        <div class="help-text">쉼표(,)로 구분하여 여러 계정 입력 가능. 비워두면 모든 사람의 트윗 검색.</div>
+    </div>
+
+    <div class="form-group">
+        <label>4. 검색 단어 (선택)</label>
+        <input type="text" id="keywords" placeholder="예: 자우림, jaurim, 김윤아">
+        <div class="help-text">쉼표(,)로 구분하여 여러 단어 입력 가능. 이 중 하나라도 포함되면 검색.</div>
+    </div>
+
+    <div class="form-group">
+        <label>5. 필터링 (파딱 & 리트윗)</label>
+        <input type="number" id="minRt" placeholder="최소 리트윗 수 (예: 10)">
+        <div class="checkbox-group">
+            <input type="checkbox" id="verifiedOr" checked>
+            <label for="verifiedOr" style="margin:0;">파란 딱지(공식 계정)이거나 위 리트윗 수를 넘긴 글만 보기</label>
+        </div>
+    </div>
+
+    <button class="btn" onclick="generateQuery()">명령어 만들기</button>
+
+    <div id="resultContainer" class="result-area"></div>
+</div>
+
+<script>
+    function generateQuery() {
+        // 입력값 가져오기
+        const startYear = parseInt(document.getElementById('startYear').value);
+        const endYear = parseInt(document.getElementById('endYear').value);
+        const startMD = document.getElementById('startMD').value.trim();
+        const endMD = document.getElementById('endMD').value.trim();
+        const accountsRaw = document.getElementById('accounts').value;
+        const keywordsRaw = document.getElementById('keywords').value;
+        const minRt = document.getElementById('minRt').value;
+        const verifiedOr = document.getElementById('verifiedOr').checked;
+
+        // 10년 초과 검사 로직 (예: 2015년~2024년은 10년이므로 차이가 9 이하여야 함)
+        if (endYear - startYear > 9) {
+            alert("구트현X 검색 오류 방지를 위해 연도 범위는 최장 10년까지만 설정 가능합니다.\n\n시작 연도와 종료 연도를 조절해 주세요!");
+            return;
+        }
+
+        if (!startMD || !endMD) {
+            alert("시작일과 종료일을 정확히 입력해주세요!");
+            return;
+        }
+
+        // 계정 처리
+        let accounts = accountsRaw.split(',').map(s => s.trim()).filter(s => s !== '');
+        let accountQuery = '';
+        if (accounts.length > 0) {
+            if (accounts.length === 1) {
+                accountQuery = `from:${accounts[0]}`;
+            } else {
+                accountQuery = `(${accounts.map(a => `from:${a}`).join(' OR ')})`;
+            }
+        }
+
+        // 단어 처리
+        let keywords = keywordsRaw.split(',').map(s => s.trim()).filter(s => s !== '');
+        let keywordQuery = '';
+        if (keywords.length > 0) {
+            if (keywords.length === 1) {
+                keywordQuery = `${keywords[0]}`;
+            } else {
+                keywordQuery = `(${keywords.join(' OR ')})`;
+            }
+        }
+
+        // 필터 처리 (파딱 OR RT)
+        let filterQuery = '';
+        if (verifiedOr && minRt) {
+            filterQuery = `(filter:verified OR min_retweets:${minRt})`;
+        } else if (verifiedOr) {
+            filterQuery = `filter:verified`;
+        } else if (minRt) {
+            filterQuery = `min_retweets:${minRt}`;
+        }
+
+        // 기본 명령어 조합
+        let baseParts = [];
+        if (accountQuery) baseParts.push(accountQuery);
+        if (keywordQuery) baseParts.push(keywordQuery);
+        if (filterQuery) baseParts.push(filterQuery);
+        let baseQuery = baseParts.join(' ');
+
+        // 날짜 조합 
+        let dateQueries = [];
+        for (let y = startYear; y <= endYear; y++) {
+            dateQueries.push(`(since:${y}-${startMD} until:${y}-${endMD})`);
+        }
+        let dateString = `(${dateQueries.join(' OR ')})`;
+        let finalQuery = baseQuery ? `${baseQuery} ${dateString}` : dateString;
+        
+        // 화면에 출력
+        const resultContainer = document.getElementById('resultContainer');
+        resultContainer.innerHTML = '<h3>✨ 생성된 검색 명령어</h3>';
+
+        const box = document.createElement('div');
+        box.className = 'result-box clearfix';
+        
+        const title = document.createElement('strong');
+        title.innerText = `${startYear}년 ~ ${endYear}년 검색어`;
+        title.style.display = 'block';
+        title.style.marginBottom = '8px';
+        title.style.color = '#1da1f2';
+        
+        const code = document.createElement('div');
+        code.innerText = finalQuery;
+        
+        const copyBtn = document.createElement('button');
+        copyBtn.className = 'copy-btn';
+        copyBtn.innerText = '복사하기';
+        copyBtn.onclick = function() {
+            navigator.clipboard.writeText(finalQuery).then(() => {
+                copyBtn.innerText = '복사 완료!';
+                copyBtn.style.background = '#1da1f2';
+                setTimeout(() => { 
+                    copyBtn.innerText = '복사하기'; 
+                    copyBtn.style.background = '#657786';
+                }, 2000);
+            });
+        };
+
+        box.appendChild(title);
+        box.appendChild(copyBtn);
+        box.appendChild(code);
+        resultContainer.appendChild(box);
+    }
+</script>
+
+</body>
+</html>
